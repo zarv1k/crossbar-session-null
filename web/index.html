@@ -58,7 +58,7 @@
   };
 
   var connection = new autobahn.Connection({
-    url: 'ws://127.0.0.1:10001/ws',
+    url: 'ws://127.0.0.1:8080/ws',
     realm: 'realm1',
     authmethods: ["ticket"],
     authid: user,
@@ -87,7 +87,10 @@
   };
   connection.onclose = function (reason, details) {
     console.log("disconnected", reason, details.reason, details);
-    document.getElementById('info').innerText = 'Please look into the crossbar.io router logs. You can see "Unhandled error" there.\nYou can also try to open normal connection using "Connect" button below and see that there is "null" session in crosbar session list';
+    if (closeConnectionAfterTimeout) {
+      document.getElementById('info').innerText = 'Please look into the crossbar.io router logs. You can see "Unhandled error" there.\nYou can also try to open normal connection using "Connect" button below and see that there is "null" session in crosbar session list';
+    }
+
     document.getElementById('openAndClose').removeAttribute('disabled');
     document.getElementById('connect').innerText = 'Connect';
   }
