@@ -1,0 +1,9 @@
+version: "3.1"
+services:
+  crossbar:
+    image: crossbario/crossbar:latest
+    ports:
+      - "10001:8080"
+    volumes:
+      - ./.crossbar:/node/.crossbar
+      - ./web:/node/web

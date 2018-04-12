@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Crossbar.io issue - session ID=null</title>
+    <script src="autobahn.min.js"></script>
+</head>
+<body>
+Ololo
+<script>
+    console.log("Ok, AutobahnJS loaded", autobahn.version);
+    // authenticate using authid "peter", and using a salted password
+    var user = "peter";
+    var key = autobahn.auth_cra.derive_key("secret1", "salt123", 100, 16);
+    // this callback is fired during WAMP-CRA authentication
+    //
+    function onchallenge(session, method, extra) {
+        console.log("onchallenge", method, extra);
+        if (method === "wampcra") {
+            console.log("authenticating via '" + method + "' and challenge '" + extra.challenge + "'");
+            return new Promise(function(resolve) {
+                resolve(autobahn.auth_cra.sign(key, extra.challenge));
+                connection.close();
+            });
+        } else {
+            throw "don't know how to authenticate using '" + method + "'";
+        }
+    }
+
+    var connection = new autobahn.Connection({
+        url: 'ws://127.0.0.1:10001/ws',
+        realm: 'realm1',
+        // the following attributes must be set of WAMP-CRA authentication
+        //
+        authmethods: ["wampcra"],
+        authid: user,
+        onchallenge: onchallenge,
+        use_es6_promises: true
+    });
+    connection.onopen = function (session, details) {
+        console.log("connected session with ID " + session.id);
+        console.log("authenticated using method '" + details.authmethod + "' and provider '" + details.authprovider + "'");
+        console.log("authenticated with authid '" + details.authid + "' and authrole '" + details.authrole + "'");
+        // call a procedure we are allowed to call (so this should succeed)
+        //
+        session.call('wamp.session.list', []).then(
+            function (res) {
+                console.log("call result", res);
+            },
+            function (error) {
+                console.log("call error", error);
+            }
+        );
+    };
+    connection.onclose = function (reason, details) {
+        console.log("disconnected", reason, details.reason, details);
+    }
+    connection.open();
+</script>
+</body>
+</html>
