@@ -3,6 +3,11 @@
   "workers": [
     {
       "type": "router",
+      "options": {
+        "pythonpath": [
+          ".."
+        ]
+      },
       "realms": [
         {
           "name": "realm1",
@@ -19,6 +24,26 @@
                     "publish": false,
                     "subscribe": false
                   }
+                }
+              ]
+            },
+            {
+              "name": "authenticator",
+              "permissions": [
+                {
+                  "uri": "com.example.authenticate",
+                  "match": "exact",
+                  "allow": {
+                    "call": false,
+                    "register": true,
+                    "publish": false,
+                    "subscribe": false
+                  },
+                  "disclose": {
+                    "caller": true,
+                    "publisher": true
+                  },
+                  "cache": true
                 }
               ]
             }
@@ -39,22 +64,25 @@
             },
             "ws": {
               "type": "websocket",
+              "serializers": [
+                "json"
+              ],
               "auth": {
-                "wampcra": {
-                  "type": "static",
-                  "users": {
-                    "peter": {
-                      "secret": "prq7+YkJ1/KlW1X0YczMHw==",
-                      "role": "frontend",
-                      "salt": "salt123",
-                      "iterations": 100,
-                      "keylen": 16
-                    }
-                  }
+                "ticket": {
+                  "type": "dynamic",
+                  "authenticator": "com.example.authenticate"
                 }
               }
             }
           }
+        }
+      ],
+      "components": [
+        {
+          "type": "class",
+          "classname": "authenticator.AuthenticatorSession",
+          "realm": "realm1",
+          "role": "authenticator"
         }
       ]
     }

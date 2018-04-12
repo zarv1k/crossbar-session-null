@@ -7,3 +7,4 @@ services:
     volumes:
       - ./.crossbar:/node/.crossbar
       - ./web:/node/web
+      - ./authenticator.py:/node/authenticator.py

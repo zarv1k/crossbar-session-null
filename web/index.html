@@ -6,56 +6,92 @@
     <script src="autobahn.min.js"></script>
 </head>
 <body>
-Ololo
-<script>
-    console.log("Ok, AutobahnJS loaded", autobahn.version);
-    // authenticate using authid "peter", and using a salted password
-    var user = "peter";
-    var key = autobahn.auth_cra.derive_key("secret1", "salt123", 100, 16);
-    // this callback is fired during WAMP-CRA authentication
-    //
-    function onchallenge(session, method, extra) {
-        console.log("onchallenge", method, extra);
-        if (method === "wampcra") {
-            console.log("authenticating via '" + method + "' and challenge '" + extra.challenge + "'");
-            return new Promise(function(resolve) {
-                resolve(autobahn.auth_cra.sign(key, extra.challenge));
-                connection.close();
-            });
-        } else {
-            throw "don't know how to authenticate using '" + method + "'";
-        }
-    }
+<h3>Try to reproduce the issue session ID=null while using async dynamic authenticator in crossbar.io</h3>
+<ol>
+    <li>
+        <button id="openAndClose">Connect & close while challenge</button>
+        <div id="info"></div>
+    </li>
+    <li><button id="connect">Connect</button></li>
+</ol>
 
-    var connection = new autobahn.Connection({
-        url: 'ws://127.0.0.1:10001/ws',
-        realm: 'realm1',
-        // the following attributes must be set of WAMP-CRA authentication
-        //
-        authmethods: ["wampcra"],
-        authid: user,
-        onchallenge: onchallenge,
-        use_es6_promises: true
-    });
-    connection.onopen = function (session, details) {
-        console.log("connected session with ID " + session.id);
-        console.log("authenticated using method '" + details.authmethod + "' and provider '" + details.authprovider + "'");
-        console.log("authenticated with authid '" + details.authid + "' and authrole '" + details.authrole + "'");
-        // call a procedure we are allowed to call (so this should succeed)
-        //
-        session.call('wamp.session.list', []).then(
-            function (res) {
-                console.log("call result", res);
-            },
-            function (error) {
-                console.log("call error", error);
-            }
-        );
-    };
-    connection.onclose = function (reason, details) {
-        console.log("disconnected", reason, details.reason, details);
+<pre id="sessionList"></pre>
+<script>
+  console.log("Ok, AutobahnJS loaded", autobahn.version);
+  // authenticate using authid "joe"
+  var user = "joe";
+  var ticket = "secret!!!";
+
+  var closeConnectionAfterTimeout = false;
+
+  function onchallenge(session, method, extra) {
+    console.log("onchallenge", method, extra);
+    if (method === "ticket") {
+      return new Promise(function (resolve) {
+        resolve(ticket);
+        if (closeConnectionAfterTimeout) {
+          setTimeout(function () {
+            connection.close();
+          }, 100)
+        }
+      });
+    } else {
+      throw "don't know how to authenticate using '" + method + "'";
     }
+  }
+
+  openAndClose.onclick = function(e) {
+    closeConnectionAfterTimeout = true;
     connection.open();
+  };
+
+  connect.onclick = function(e) {
+    closeConnectionAfterTimeout = false;
+    if (!connection.isOpen) {
+      connection.open();
+      e.target.innerHTML = 'Disconnect';
+
+    } else {
+      connection.close();
+      e.target.innerHTML = 'Connect';
+    }
+  };
+
+  var connection = new autobahn.Connection({
+    url: 'ws://127.0.0.1:10001/ws',
+    realm: 'realm1',
+    authmethods: ["ticket"],
+    authid: user,
+    onchallenge: onchallenge,
+    use_es6_promises: true
+  });
+
+  connection.onopen = function (session, details) {
+    console.log("connected session with ID " + session.id);
+    console.log("authenticated using method '" + details.authmethod + "' and provider '" + details.authprovider + "'");
+    console.log("authenticated with authid '" + details.authid + "' and authrole '" + details.authrole + "'");
+
+    document.getElementById('connect').innerText = 'Disconnect';
+
+    // call a procedure we are allowed to call (so this should succeed)
+    session.call('wamp.session.list', []).then(
+      function (res) {
+        console.log("call result", res);
+        document.getElementById('sessionList').innerText = 'wamp.session.list call result:\n' + JSON.stringify(res, null, 2);
+        document.getElementById('openAndClose').setAttribute('disabled', true);
+      },
+      function (error) {
+        console.log("call error", error);
+      }
+    );
+  };
+  connection.onclose = function (reason, details) {
+    console.log("disconnected", reason, details.reason, details);
+    document.getElementById('info').innerText = 'Please look into the crossbar.io router logs. You can see "Unhandled error" there.\nYou can also try to open normal connection using "Connect" button below and see that there is "null" session in crosbar session list';
+    document.getElementById('openAndClose').removeAttribute('disabled');
+    document.getElementById('connect').innerText = 'Connect';
+  }
 </script>
+
 </body>
 </html>
